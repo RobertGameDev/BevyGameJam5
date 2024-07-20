@@ -1,29 +1,59 @@
-// Bevy code commonly triggers these lints and they may be important signals
-// about code quality. They are sometimes hard to avoid though, and the CI
-// workflow treats them as errors, so this allows them throughout the project.
-// Feel free to delete this line.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
+use std::borrow::ToOwned;
+
 use bevy::asset::AssetMetaCheck;
+use bevy::color::palettes::css;
 use bevy::prelude::*;
+use bevy_mod_picking::prelude::*;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(AssetPlugin {
-            // Wasm builds will check for meta files (that don't exist) if this isn't set.
-            // This causes errors and even panics in web builds on itch.
-            // See https://github.com/bevyengine/bevy_github_ci_template/issues/48.
             meta_check: AssetMetaCheck::Never,
             ..default()
         }))
+        .add_plugins(DefaultPickingPlugins)
         .add_systems(Startup, setup)
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Camera2dBundle::default());
-    commands.spawn(SpriteBundle {
-        texture: asset_server.load("ducky.png"),
-        ..Default::default()
-    });
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    commands.spawn(Camera3dBundle::default());
+    commands.spawn(PointLightBundle::default());
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(Sphere::default()),
+            material: materials.add(Color::from(css::GRAY)),
+            transform: Transform::from_xyz(0.0, 0.0, -5.0),
+            ..default()
+        },
+        PickableBundle::default(),
+        HIGHLIGHT_TINT,
+    ));
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(Sphere::default()),
+            material: materials.add(Color::from(css::BLUE)),
+            transform: Transform::from_xyz(1.0, 0.0, -5.0),
+            ..default()
+        },
+        PickableBundle::default(),
+        HIGHLIGHT_TINT,
+    ));
 }
+
+const HIGHLIGHT_TINT: Highlight<StandardMaterial> = Highlight {
+    hovered: Some(HighlightKind::new_dynamic(|matl| StandardMaterial {
+        base_color: matl
+            .base_color
+            .mix(&Color::srgba(-0.5, -0.3, 0.9, 0.8), 0.5), // hovered is blue
+        ..matl.to_owned()
+    })),
+    selected: None,
+    pressed: None,
+};
